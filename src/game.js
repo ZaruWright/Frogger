@@ -272,7 +272,7 @@ EnemyMissile.prototype.type = OBJECT_ENEMY_PROJECTILE;
 
 EnemyMissile.prototype.step = function(dt)  {
   this.y += this.vy * dt;
-  var collision = this.board.collide(this,OBJECT_PLAYER)
+  var collision = this.board.collide(this,OBJECT_PLAYER);
   if(collision) {
     collision.hit(this.damage);
     this.board.remove(this);
