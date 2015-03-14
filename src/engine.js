@@ -189,10 +189,12 @@ var TitleScreen = function TitleScreen(title,subtitle,callback) {
 
 var GameBoard = function() {
   var board = this;
+  
 
   // The current list of objects
   this.objects = [];
   this.cnt = {}; //Number of types from an object
+  this.locked = false;
 
   // Add a new object to the object list
   this.add = function(obj) { 
@@ -246,15 +248,19 @@ var GameBoard = function() {
 
   // Call step on all objects and them delete
   // any object that have been marked for removal
-  this.step = function(dt) { 
-    this.resetRemoved();
-    this.iterate('step',dt);
-    this.finalizeRemoved();
+  this.step = function(dt) {
+    if (!this.locked){
+      this.resetRemoved();
+      this.iterate('step',dt);
+      this.finalizeRemoved();
+    }
   };
 
   // Draw all the objects
   this.draw= function(ctx) {
-    this.iterate('draw',ctx);
+    if (!this.locked){
+      this.iterate('draw',ctx);
+    }
   };
 
   // Check for a collision between the 
