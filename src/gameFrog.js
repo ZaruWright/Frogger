@@ -10,6 +10,41 @@ var sprites = {
   death: { sx: 0, sy: 143, w: 48, h: 48, frames: 4 }
 }
 
+var roadObstacles = {
+  radioControlLeftCar: {sprite: 'car1',  direction: 'left'},
+  radioControlRightCar: {sprite: 'car5', direction: 'right'},
+  truck: {sprite: 'car3', direction: 'right'},
+  crawler:{sprite: 'car2', direction: 'left'},
+  car:{sprite:'car4', direction: 'left'}
+}
+
+var waterObstacles = {
+  slowTrunk: {sprite: 'trunk', vx:20},
+  middleTrunk: {sprite: 'trunk', vx:50},
+  fastTrunk: {sprite: 'trunk', vx:80}
+}
+
+//[Frequency,  Blueprint, Override]
+var Level1 = [
+
+//CARS
+[
+  [ 5, 'radioControlRightCar', {row:2}],
+  [ 5, 'radioControlLeftCar', {row:3}],
+  [ 5, 'radioControlLeftCar', {row:4}],
+  [ 5, 'radioControlLeftCar', {row:5}]
+
+],
+
+//TRUNKS
+[
+  [ 10, 'slowTrunk', {row:7, direction:'left'}],
+  [ 3, 'fastTrunk', {row:8, direction:'right'}],
+  [ 5, 'middleTrunk', {row:9, direction:'left'}]
+]
+
+];
+
 var OBJECT_PLAYER = 1,
     OBJECT_CAR = 2,
     OBJECT_TRUNK = 4,
@@ -65,21 +100,22 @@ var playGame = function() {
 
   board.add(new Water());
   board.add(new Home());
-  board.add(new Trunk('right', 7, 20));
-  board.add(new Trunk('left', 8, 30));
-  board.add(new Trunk('right', 9, 40));
+  //board.add(new Trunk('right', 7, 20));
+  //board.add(new Trunk('left', 8, 30));
+  //board.add(new Trunk('right', 9, 40));
   board.add(new Frog());
-  board.add(new Spawner(new Car('car1', 'left', 2, 20), 8));
-  //board.add(new Car('car1', 'left', 2, 20));
-  board.add(new Car('car2', 'right', 4, 50));
+  //board.add(new Spawner(new Car('car1', 'left', 2, 20), 8));
+  //board.add(new Car({sprite:'car1'}));
+  //board.add(new Car({sprite:'car2', vx:50, direction: 'right', row:4}));
   //board.add(new Level(level1,winGame));
+  board.add(new Spawner(Level1, winGame));
   Game.setBoard(2,board);
   //Game.setBoard(5,new GamePoints(0));
 };
 
 var betweenRows = function(min, max, dt){
   if (this.row < min || this.row > max){
-    console.error("You cannot put a car at this place!!");
+    console.error("You cannot put this object at this place!!");
   }
   this.y = Game.height - (this.row * this.h);
 
@@ -87,18 +123,29 @@ var betweenRows = function(min, max, dt){
     this.x -= this.vx * dt;
   }
   else if (this.direction == 'left' && this.x < -this.w){
-    this.hit(9999); //erase de car
+    this.board.remove(this); //erase de object
   }
   else if (this.direction == 'right' && Game.width >= this.x){
     this.x += this.vx * dt;
   }
   else if (this.direction == 'right' && Game.width < this.x){
-    this.hit(9999); //erase de car
+    this.board.remove(this); //erase de object
   }
   else{
     console.error("The direction only can be left or right", this.direction, this.x);
   }
 }
+
+/*var goOutTheLimits = function(){
+  if (this.direction == 'left' && this.x < -this.w){
+    this.x = Game.width;
+  }
+  else if (this.direction == 'right' && Game.width < this.x){
+    this.x = -this.h;
+  }
+
+  return this;
+}*/
 
 /*
 #####
@@ -169,22 +216,26 @@ Frog.prototype.hit = function(damage) {
 # Car Class
 ##############
 */
-var Car = function(sprite, direction, row, velocity){
-  this.setup( sprite, { vx: velocity, direction: direction, row: row });
+var Car = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( blueprint.sprite, blueprint);
+  this.merge(override);
   this.y = 0;
 
   if (this.direction == 'left'){
     this.x = Game.width;
   }
   else if (this.direction == 'right'){
-    this.x = -this.h;
+    this.x = -this.w;
   }
   else{
     console.error("The direction only can be left or right");
   }
-
 };
+
+
 Car.prototype = new Sprite();
+Car.prototype.baseBlueprint = {vx: 100, direction: 'left', row: 2};
 Car.prototype.type = OBJECT_CAR;
 
 Car.prototype.step = function(dt){
@@ -201,15 +252,18 @@ Car.prototype.step = function(dt){
 # Trunk Class
 ##############
 */
-var Trunk = function(direction, row, velocity){
-this.setup( 'trunk', { vx: velocity, direction: direction, row: row });
-this.y = 0;
+var Trunk = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( blueprint.sprite, blueprint);
+  this.merge(override);
+
+  this.y = 0;
 
   if (this.direction == 'left'){
     this.x = Game.width;
   }
   else if (this.direction == 'right'){
-    this.x = -this.h;
+    this.x = -this.w;
   }
   else{
     console.error("The direction only can be left or right");
@@ -218,6 +272,8 @@ this.y = 0;
 
 Trunk.prototype = new Sprite();
 Trunk.prototype.type = OBJECT_TRUNK;
+Trunk.prototype.baseBlueprint = {vx: 30, direction: 'left', row: 7};
+
 
 Trunk.prototype.step = function(dt){
     betweenRows.call(this,7,9,dt);
@@ -313,9 +369,10 @@ Water.prototype.type = OBJECT_HOME;
 # Spawner Class
 ##############
 */
-var Spawner = function(obj, interval){
+/*var Spawner = function(obj, interval){
   this.interval = interval;
   this.reload = interval;
+  this.obj = obj;
 }
 Spawner.prototype = new Sprite();
 
@@ -326,10 +383,10 @@ Spawner.prototype.draw = function(ctx){
 Spawner.prototype.step = function(dt){
   this.reload -= dt;
   if (this.reload < 0){
-    obj.create(obj.prototype);
+    this.obj.create(this.obj.prototype);
     this.reload = interval;
   }
-}
+}*/
 
 /*
 #####

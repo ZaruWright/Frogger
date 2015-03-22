@@ -204,6 +204,14 @@ var GameBoard = function() {
     return obj; 
   };
 
+  // Add a new object at the begining of the object list
+  this.unshift = function(obj) { 
+    obj.board=this; 
+    this.objects.unshift(obj); 
+    this.cnt[obj.type] = (this.cnt[obj.type] || 0) + 1;
+    return obj; 
+  };
+
   // Mark an object for removal
   this.remove = function(obj) { 
     var idx = this.removed.indexOf(obj);
@@ -311,57 +319,76 @@ Sprite.prototype.hit = function(damage) {
 };
 
 
-var Level = function(levelData,callback) {
-  this.levelData = [];
-  for(var i =0; i<levelData.length; i++) {
-    this.levelData.push(Object.create(levelData[i]));
+var Spawner = function(levelData,callback) {
+  this.levelDataRoad = [];
+  this.levelDataWater = [];
+  this.tRoad = [];
+  this.tWater = [];
+
+  for (var i=0; i<levelData[0].length; ++i){
+    this.levelDataRoad.push(Object.create(levelData[0][i]));
+    this.tRoad[i] = 0;
   }
-  this.t = 0;
+
+  for (var i=0; i<levelData[1].length; ++i){
+    this.levelDataWater.push(Object.create(levelData[1][i]));
+    this.tWater[i] = 0;
+  }
+  
   this.callback = callback;
 };
 
-Level.prototype.step = function(dt) {
-  var idx = 0, remove = [], curShip = null;
+Spawner.prototype.step = function(dt) {
+  var curObstacle = null, index = 0;
 
-  // Update the current time offset
-  this.t += dt * 1000;
+  //[Frequency,    type,    override]
+  //For road obstacles
+  while (index < this.levelDataRoad.length){
 
-  //   Start, End,  Gap, Type,   Override
-  // [ 0,     4000, 500, 'step', { x: 100 } ]
-  while((curShip = this.levelData[idx]) && 
-        (curShip[0] < this.t + 2000)) {
-    // Check if we've passed the end time 
-    if(this.t > curShip[1]) {
-      remove.push(curShip);
-    } else if(curShip[0] < this.t) {
-      // Get the enemy definition blueprint
-      var enemy = enemies[curShip[3]],
-          override = curShip[4];
+    if (this.tRoad[index] <= 0){
+      curObstacle = this.levelDataRoad[index];
 
-      // Add a new enemy with the blueprint and override
-      this.board.add(new Enemy(enemy,override));
+      var obstacle = roadObstacles[curObstacle[1]],
+          override = curObstacle[2];
+   
+      this.board.add(new Car(obstacle,override));
 
-      // Increment the start time by the gap
-      curShip[0] += curShip[2];
+      this.tRoad[index] = curObstacle[0];
     }
-    idx++;
+
+    ++index;
+    
   }
 
-  // Remove any objects from the levelData that have passed
-  for(var i=0,len=remove.length;i<len;i++) {
-    var remIdx = this.levelData.indexOf(remove[i]);
-    if(remIdx != -1) this.levelData.splice(remIdx,1);
+  index = 0;
+
+  //For water obstacles
+  while(index < this.levelDataWater.length){
+
+    if (this.tWater[index] <= 0){
+      curObstacle = this.levelDataWater[index];
+
+      var obstacle = waterObstacles[curObstacle[1]],
+            override = curObstacle[2];
+     
+      this.board.unshift(new Trunk(obstacle,override));
+
+      this.tWater[index] = curObstacle[0];
+    }
+
+    ++index;
   }
 
-  // If there are no more enemies on the board or in 
-  // levelData, this level is done
-  if(this.levelData.length === 0 && this.board.cnt[OBJECT_ENEMY] === 0) {
-    if(this.callback) this.callback();
+  for (var i=0; i < this.tRoad.length; ++i){
+    this.tRoad[i] -= dt;
   }
 
+  for (var i=0; i < this.tWater.length; ++i){
+    this.tWater[i] -= dt;
+  }
 };
 
-Level.prototype.draw = function(ctx) { };
+Spawner.prototype.draw = function(ctx) { };
 
 
 var TouchControls = function() {
