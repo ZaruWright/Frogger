@@ -51,6 +51,14 @@ var Game = new function() {
 
     SpriteSheet.load(sprite_data,sprite_image,callback);
   };
+
+  this.changeSizeCanvas = function(width, height){
+    $('canvas').attr("width", width);
+    $('canvas').attr("height", height);
+
+    this.width = width;
+    this.height= height;
+  };
   
 
   // Handle Input
@@ -211,6 +219,12 @@ var GameBoard = function() {
     this.cnt[obj.type] = (this.cnt[obj.type] || 0) + 1;
     return obj; 
   };
+
+  // Clear the board.
+  this.clearBoard = function(){
+    this.objects = [];
+    this.removed = [];//Esto borra de verdad??? hay recolector de basura o algo así?
+  }
 
   // Mark an object for removal
   this.remove = function(obj) { 
@@ -481,6 +495,21 @@ var GamePoints = function() {
     while(i-- > 0) { zeros += "0"; }
 
     ctx.fillText(zeros + txt,10,20);
+    ctx.restore();
+
+  };
+
+  this.step = function(dt) { };
+};
+
+var GameHub = function(text) {
+  this.text = text;
+
+  this.draw = function(ctx) {
+    ctx.save();
+    ctx.font = "bold 18px arial";
+    ctx.fillStyle= "#FFFFFF";
+    ctx.fillText(Game.lifes + "-UP",20,20);
     ctx.restore();
 
   };

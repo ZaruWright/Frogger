@@ -1,6 +1,7 @@
 var sprites = {
   frog: { sx: 0, sy: 0, w: 48, h: 48, frames: 1 },
   bg: { sx: 433, sy: 0, w: 320, h: 480, frames: 1 },
+  bg2: { sx: 795, sy: 0, w: 864, h: 720, frames: 1 },
   car1: { sx: 143, sy: 0, w: 48, h: 48, frames: 1 },
   car2: { sx: 191, sy: 0, w: 48, h: 48, frames: 1 },  
   car3: { sx: 239, sy: 0, w: 96, h: 48, frames: 1 },
@@ -45,6 +46,32 @@ var Level1 = [
 
 ];
 
+//[Frequency,  Blueprint, Override]
+var Level2 = [
+
+//CARS
+[
+  [ 5, 'radioControlRightCar', {row:9, vx:50}],
+  [ 3, 'truck', {row:8, vx:70}],
+  [ 2, 'car', {row:7, vx:75}],
+  [ 9, 'crawler', {row:6, vx:100}],
+  [ 5, 'car', {row:5, vx:120}],
+  [ 6, 'truck', {row:4, vx:150}],
+  [ 7, 'car', {row:3, vx:146}],
+  [ 8, 'crawler', {row:2, vx:180}]
+
+],
+
+//TRUNKS
+[
+  [ 10, 'slowTrunk', {row:11, direction:'left'}],
+  [ 3, 'fastTrunk', {row:12, direction:'right'}],
+  [ 5, 'middleTrunk', {row:13, direction:'left'}],
+  [ 3, 'fastTrunk', {row:14, direction:'right', vx: 180}]
+]
+
+];
+
 var OBJECT_PLAYER = 1,
     OBJECT_CAR = 2,
     OBJECT_TRUNK = 4,
@@ -55,18 +82,19 @@ var startGame = function() {
   var ua = navigator.userAgent.toLowerCase();
 
   //Background of the game
-  Game.setBoard(1, new Field());
+  Game.setBoard(1, new Field('bg'));
   
   Game.setBoard(2,new TitleScreen("Frogger", 
                                   "Press Enter to start playing",
                                   playGame));
+  Game.lifes = 3;
 };
 
 
-var Field = function() {
-
+var Field = function(bg) {
+  this.bg = bg;
   this.step = function(dt) {
-    this.setup('bg');
+    this.setup(this.bg);
     this.x = 0;
     this.y = 0;
   };
@@ -77,6 +105,7 @@ Field.prototype = new Sprite();
 var winGame = function() {
 
   if (!this.end){
+    Game.lifes += 3;
     this.board.add(new TitleScreen("You win!", 
                                     "Press Enter to start playing",
                                     playGame));
@@ -85,22 +114,56 @@ var winGame = function() {
 };
 
 var loseGame = function() {
-
+  Game.lifes = 3;
   this.board.add(new TitleScreen("You lose!", 
                                   "Press Enter to start playing",
                                   playGame));
+  
 };
+
+var retry = function(){
+  Game.lifes--;
+  if (Game.levelNumber == 1){
+    callback = playGame;
+  }
+  else if (Game.levelNumber == 2){
+    callback = level2;
+  }
+  this.board.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
+                                  "Press Enter to retry it",
+                                  callback));
+  
+}
 
 var playGame = function() {
+  Game.changeSizeCanvas(320,480);
+  Game.setBoard(1, new Field('bg'));
   var board = new GameBoard();
+  Game.levelNumber = 1;
 
-  board.add(new Water());
+  board.add(new Water(3));
   board.add(new Home());
   board.add(new Frog());
-  board.add(new Spawner(Level1, winGame));
+  board.add(new Spawner(Level1));
   Game.setBoard(2,board);
-  //Game.setBoard(5,new GamePoints(0));
+  Game.setBoard(3,new GameHub());
 };
+
+var level2 = function(){
+  Game.changeSizeCanvas(864,720);
+  Game.setBoard(1, new Field('bg2'));
+
+  var board = new GameBoard();
+  Game.levelNumber = 2;
+
+  board.add(new Water(4));
+  board.add(new Home());
+  board.add(new Frog());
+  board.add(new Spawner(Level2));
+  Game.setBoard(2,board);
+  Game.setBoard(3,new GameHub());
+}
+
 
 var betweenRows = function(min, max, dt){
   if (this.row < min || this.row > max){
@@ -189,7 +252,12 @@ Frog.prototype.onTrunk = function (trunk, dt){
 Frog.prototype.hit = function(damage) {
   if(this.board.remove(this)) {
     this.board.add(new Death(this.x,this.y));
-    loseGame.call(this);
+    if (Game.lifes > 0){
+      retry.call(this);
+    }
+    else{
+      loseGame.call(this);
+    }
   }
 };
 
@@ -221,7 +289,12 @@ Car.prototype.baseBlueprint = {vx: 100, direction: 'left', row: 2};
 Car.prototype.type = OBJECT_CAR;
 
 Car.prototype.step = function(dt){
+    if (Game.levelNumber == 1){
     betweenRows.call(this,2,5,dt);
+  }
+  else if (Game.levelNumber == 2){
+    betweenRows.call(this,2,9,dt);
+  }
     var frog = this.board.collide(this,OBJECT_PLAYER);
     if(frog) {
       frog.hit();
@@ -257,7 +330,12 @@ Trunk.prototype.baseBlueprint = {vx: 30, direction: 'left', row: 7};
 
 
 Trunk.prototype.step = function(dt){
+  if (Game.levelNumber == 1){
     betweenRows.call(this,7,9,dt);
+  }
+  else if (Game.levelNumber == 2){
+    betweenRows.call(this,11,15,dt);
+  }
   };
 
 /*
@@ -265,10 +343,10 @@ Trunk.prototype.step = function(dt){
 # Water Class
 ##############
 */
-var Water = function(){
+var Water = function(rows){
   this.x = 0;
   this.y = 48;
-  this.h = 48 * 3;
+  this.h = 48 * rows;
   this.w = Game.width;
 
   this.draw = function (ctx){
@@ -318,7 +396,7 @@ Death.prototype.step = function (dt){
 
 /*
 #####
-# Death Class
+# Home Class
 ##############
 */
 var Home = function (){
@@ -334,8 +412,13 @@ var Home = function (){
   this.step = function (dt){
     var frog = this.board.collide(this,OBJECT_PLAYER);
     if(frog) {
-      console.log("fin");
-      winGame.call(frog);
+      if (Game.levelNumber == 1){
+        level2();
+      }
+      else if (Game.levelNumber == 2){
+        winGame.call(frog);  
+      }
+      
     }
   }
 
@@ -350,5 +433,5 @@ Water.prototype.type = OBJECT_HOME;
 ##############
 */
 window.addEventListener("load", function() {
-  Game.initialize("game",sprites,'img/spritesFrogger.png',startGame);
+  Game.initialize("game",sprites,'img/spritesFroggerMoreLevels.png',startGame);
 });
