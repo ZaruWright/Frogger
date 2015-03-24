@@ -1,305 +1,354 @@
 var sprites = {
- ship: { sx: 0, sy: 0, w: 37, h: 42, frames: 1 },
- missile: { sx: 0, sy: 30, w: 2, h: 10, frames: 1 },
- enemy_purple: { sx: 37, sy: 0, w: 42, h: 43, frames: 1 },
- enemy_bee: { sx: 79, sy: 0, w: 37, h: 43, frames: 1 },
- enemy_ship: { sx: 116, sy: 0, w: 42, h: 43, frames: 1 },
- enemy_circle: { sx: 158, sy: 0, w: 32, h: 33, frames: 1 },
- explosion: { sx: 0, sy: 64, w: 64, h: 64, frames: 12 },
- enemy_missile: { sx: 9, sy: 42, w: 3, h: 20, frame: 1, }
-};
+  frog: { sx: 0, sy: 0, w: 48, h: 48, frames: 1 },
+  bg: { sx: 433, sy: 0, w: 320, h: 480, frames: 1 },
+  car1: { sx: 143, sy: 0, w: 48, h: 48, frames: 1 },
+  car2: { sx: 191, sy: 0, w: 48, h: 48, frames: 1 },  
+  car3: { sx: 239, sy: 0, w: 96, h: 48, frames: 1 },
+  car4: { sx: 335, sy: 0, w: 48, h: 48, frames: 1 },
+  car5: { sx: 383, sy: 0, w: 48, h: 48, frames: 1 },
+  trunk: { sx: 288, sy: 383, w: 142, h: 48, frames: 1 },
+  death: { sx: 0, sy: 143, w: 48, h: 48, frames: 4 }
+}
 
-var enemies = {
-  straight: { x: 0,   y: -50, sprite: 'enemy_ship', health: 10, 
-              E: 100 },
-  ltr:      { x: 0,   y: -100, sprite: 'enemy_purple', health: 10, 
-              B: 75, C: 1, E: 100, missiles: 2  },
-  circle:   { x: 250,   y: -50, sprite: 'enemy_circle', health: 10, 
-              A: 0,  B: -100, C: 1, E: 20, F: 100, G: 1, H: Math.PI/2 },
-  wiggle:   { x: 100, y: -50, sprite: 'enemy_bee', health: 20, 
-              B: 50, C: 4, E: 100, firePercentage: 0.001, missiles: 2 },
-  step:     { x: 0,   y: -50, sprite: 'enemy_circle', health: 10,
-              B: 150, C: 1.2, E: 75 }
-};
+var roadObstacles = {
+  radioControlLeftCar: {sprite: 'car1',  direction: 'left'},
+  radioControlRightCar: {sprite: 'car5', direction: 'right'},
+  truck: {sprite: 'car3', direction: 'left'},
+  crawler:{sprite: 'car2', direction: 'right'},
+  car:{sprite:'car4', direction: 'left'}
+}
 
-var level1 = [
- // Start,   End, Gap,  Type,   Override
-  [ 0,      4000,  500, 'step' ],
-  [ 6000,   13000, 800, 'ltr' ],
-  [ 10000,  16000, 400, 'circle' ],
-  [ 17800,  20000, 500, 'straight', { x: 50 } ],
-  [ 18200,  20000, 500, 'straight', { x: 90 } ],
-  [ 18200,  20000, 500, 'straight', { x: 10 } ],
-  [ 22000,  25000, 400, 'wiggle', { x: 150 }],
-  [ 22000,  25000, 400, 'wiggle', { x: 100 }]
+var waterObstacles = {
+  slowTrunk: {sprite: 'trunk', vx:20},
+  middleTrunk: {sprite: 'trunk', vx:50},
+  fastTrunk: {sprite: 'trunk', vx:80}
+}
+
+//[Frequency,  Blueprint, Override]
+var Level1 = [
+
+//CARS
+[
+  [ 5, 'radioControlRightCar', {row:2}],
+  [ 5, 'radioControlLeftCar', {row:3}],
+  [ 3, 'truck', {row:4}],
+  [ 8, 'crawler', {row:5}]
+
+],
+
+//TRUNKS
+[
+  [ 10, 'slowTrunk', {row:7, direction:'left'}],
+  [ 3, 'fastTrunk', {row:8, direction:'right'}],
+  [ 5, 'middleTrunk', {row:9, direction:'left'}]
+]
+
 ];
 
 var OBJECT_PLAYER = 1,
-    OBJECT_PLAYER_PROJECTILE = 2,
-    OBJECT_ENEMY = 4,
-    OBJECT_ENEMY_PROJECTILE = 8,
-    OBJECT_POWERUP = 16;
+    OBJECT_CAR = 2,
+    OBJECT_TRUNK = 4,
+    OBJECT_WATER = 8,
+    OBJECT_HOME = 16;
 
 var startGame = function() {
   var ua = navigator.userAgent.toLowerCase();
 
-  // Only 1 row of stars
-  // This is the background of the game.
-  if(ua.match(/android/)) {
-    Game.setBoard(0,new Starfield(50,0.6,100,true));
-  } else {
-    Game.setBoard(0,new Starfield(20,0.4,100,true));
-    Game.setBoard(1,new Starfield(50,0.6,100));
-    Game.setBoard(2,new Starfield(100,1.0,50));
-  }
+  //Background of the game
+  Game.setBoard(1, new Field());
   
-  Game.setBoard(3,new TitleScreen("Alien Invasion", 
-                                  "Press fire to start playing",
+  Game.setBoard(2,new TitleScreen("Frogger", 
+                                  "Press Enter to start playing",
                                   playGame));
 };
 
 
+var Field = function() {
 
-var playGame = function() {
-  var board = new GameBoard();
-  board.add(new PlayerShip());
-  board.add(new Level(level1,winGame));
-  Game.setBoard(3,board);
-  Game.setBoard(5,new GamePoints(0));
+  this.step = function(dt) {
+    this.setup('bg');
+    this.x = 0;
+    this.y = 0;
+  };
+
 };
+Field.prototype = new Sprite();
 
 var winGame = function() {
-  Game.setBoard(3,new TitleScreen("You win!", 
-                                  "Press fire to play again",
-                                  playGame));
+
+  if (!this.end){
+    this.board.add(new TitleScreen("You win!", 
+                                    "Press Enter to start playing",
+                                    playGame));
+    this.end = true;
+  }
 };
 
 var loseGame = function() {
-  Game.setBoard(3,new TitleScreen("You lose!", 
-                                  "Press fire to play again",
+
+  this.board.add(new TitleScreen("You lose!", 
+                                  "Press Enter to start playing",
                                   playGame));
 };
 
-var Starfield = function(speed,opacity,numStars,clear) {
+var playGame = function() {
+  var board = new GameBoard();
 
-  // Set up the offscreen canvas
-  var stars = document.createElement("canvas");
-  stars.width = Game.width; 
-  stars.height = Game.height;
-  var starCtx = stars.getContext("2d");
-
-  var offset = 0;
-
-  // If the clear option is set, 
-  // make the background black instead of transparent
-  if(clear) {
-    starCtx.fillStyle = "#000";
-    starCtx.fillRect(0,0,stars.width,stars.height);
-  }
-
-  // Now draw a bunch of random 2 pixel
-  // rectangles onto the offscreen canvas
-  starCtx.fillStyle = "#FFF";
-  starCtx.globalAlpha = opacity;
-  for(var i=0;i<numStars;i++) {
-    starCtx.fillRect(Math.floor(Math.random()*stars.width),
-                     Math.floor(Math.random()*stars.height),
-                     2,
-                     2);
-  }
-
-  // This method is called every frame
-  // to draw the starfield onto the canvas
-  this.draw = function(ctx) {
-    var intOffset = Math.floor(offset);
-    var remaining = stars.height - intOffset;
-
-    // Draw the top half of the starfield
-    if(intOffset > 0) {
-      ctx.drawImage(stars,
-                0, remaining,
-                stars.width, intOffset,
-                0, 0,
-                stars.width, intOffset);
-    }
-
-    // Draw the bottom half of the starfield
-    if(remaining > 0) {
-      ctx.drawImage(stars,
-              0, 0,
-              stars.width, remaining,
-              0, intOffset,
-              stars.width, remaining);
-    }
-  };
-
-  // This method is called to update
-  // the starfield
-  this.step = function(dt) {
-    offset += dt * speed;
-    offset = offset % stars.height;
-  };
+  board.add(new Water());
+  board.add(new Home());
+  board.add(new Frog());
+  board.add(new Spawner(Level1, winGame));
+  Game.setBoard(2,board);
+  //Game.setBoard(5,new GamePoints(0));
 };
 
-var PlayerShip = function() { 
-  this.setup('ship', { vx: 0, reloadTime: 0.25, maxVel: 200 });
+var betweenRows = function(min, max, dt){
+  if (this.row < min || this.row > max){
+    console.error("You cannot put this object at this place!!");
+  }
+  this.y = Game.height - (this.row * this.h);
+
+  if (this.direction == 'left' && this.x >= -this.w){
+    this.x -= this.vx * dt;
+  }
+  else if (this.direction == 'left' && this.x < -this.w){
+    this.board.remove(this); //erase de object
+  }
+  else if (this.direction == 'right' && Game.width >= this.x){
+    this.x += this.vx * dt;
+  }
+  else if (this.direction == 'right' && Game.width < this.x){
+    this.board.remove(this); //erase de object
+  }
+  else{
+    console.error("The direction only can be left or right", this.direction, this.x);
+  }
+}
+
+/*
+#####
+# Frog Class
+##############
+*/
+var Frog = function() { 
+  this.setup('frog', { vx: 0, reloadTime: 0.15, maxVel: 48 });
 
   this.reload = this.reloadTime;
-  this.x = Game.width/2 - this.w / 2;
-  this.y = Game.height - Game.playerOffset - this.h;
+  this.x = this.h * 3;
+  this.y = Game.height - this.h;
 
   this.step = function(dt) {
-    if(Game.keys['left']) { this.vx = -this.maxVel; }
-    else if(Game.keys['right']) { this.vx = this.maxVel; }
-    else { this.vx = 0; }
+    this.reload -= dt;
+    if (this.reload < 0){
 
-    this.x += this.vx * dt;
+      // If the frog arrives to home, it won't move. 
+      if (!this.end){
+        if(Game.keys['left']) { this.x -= this.maxVel; console.log("x = " + this.x);}
+        else if(Game.keys['right']) { this.x += this.maxVel; console.log("x = " + this.x);}
+        else if(Game.keys['up']) { this.y -= this.maxVel; console.log("y = " + this.y);}
+        else if(Game.keys['down']) { this.y += this.maxVel; console.log("y = " + this.y);}
+        else { this.vx = 0; }
+      }
 
-    if(this.x < 0) { this.x = 0; }
-    else if(this.x > Game.width - this.w) { 
-      this.x = Game.width - this.w;
-    }
+      // You can't go out of the limits of the screen!!
+      if(this.x < 0) { this.x = 0; }
+      else if(this.x > Game.width - this.w) { 
+        this.x = Game.width - this.w;
+      }
+      else if(this.y < 0){ this.y = 0; }
+      else if(this.y > Game.height - this.w){ 
+        this.y = Game.height - this.w;
+      }
 
-    this.reload-=dt;
-    if(Game.keys['fire'] && this.reload < 0) {
-      Game.keys['fire'] = false;
       this.reload = this.reloadTime;
-
-      this.board.add(new PlayerMissile(this.x,this.y+this.h/2));
-      this.board.add(new PlayerMissile(this.x+this.w,this.y+this.h/2));
     }
+
+    var trunk = this.board.collide(this,OBJECT_TRUNK);
+    if(trunk) {
+      this.onTrunk(trunk, dt);
+    }
+
   };
 };
 
-PlayerShip.prototype = new Sprite();
-PlayerShip.prototype.type = OBJECT_PLAYER;
+Frog.prototype = new Sprite();
+Frog.prototype.type = OBJECT_PLAYER;
 
-PlayerShip.prototype.hit = function(damage) {
+Frog.prototype.onTrunk = function (trunk, dt){
+  if (trunk.direction == 'left'){
+    this.x -= trunk.vx * dt;
+  }
+  else if (trunk.direction == 'right'){
+    this.x += trunk.vx * dt;
+  }
+  else{
+    console.error("The direction only can be left or right");
+  }
+};
+
+Frog.prototype.hit = function(damage) {
   if(this.board.remove(this)) {
-    loseGame();
+    this.board.add(new Death(this.x,this.y));
+    loseGame.call(this);
   }
 };
 
-
-var PlayerMissile = function(x,y) {
-  this.setup('missile',{ vy: -700, damage: 10 });
-  this.x = x - this.w/2;
-  this.y = y - this.h; 
-};
-
-PlayerMissile.prototype = new Sprite();
-PlayerMissile.prototype.type = OBJECT_PLAYER_PROJECTILE;
-
-PlayerMissile.prototype.step = function(dt)  {
-  this.y += this.vy * dt;
-  var collision = this.board.collide(this,OBJECT_ENEMY);
-  if(collision) {
-    collision.hit(this.damage);
-    this.board.remove(this);
-  } else if(this.y < -this.h) { 
-      this.board.remove(this); 
-  }
-};
-
-
-var Enemy = function(blueprint,override) {
-  this.merge(this.baseParameters);
-  this.setup(blueprint.sprite,blueprint);
+/*
+#####
+# Car Class
+##############
+*/
+var Car = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( blueprint.sprite, blueprint);
   this.merge(override);
+  this.y = 0;
+
+  if (this.direction == 'left'){
+    this.x = Game.width;
+  }
+  else if (this.direction == 'right'){
+    this.x = -this.w;
+  }
+  else{
+    console.error("The direction only can be left or right");
+  }
 };
 
-Enemy.prototype = new Sprite();
-Enemy.prototype.type = OBJECT_ENEMY;
 
-Enemy.prototype.baseParameters = { A: 0, B: 0, C: 0, D: 0, 
-                                   E: 0, F: 0, G: 0, H: 0,
-                                   t: 0, reloadTime: 0.75, 
-                                   reload: 0 };
+Car.prototype = new Sprite();
+Car.prototype.baseBlueprint = {vx: 100, direction: 'left', row: 2};
+Car.prototype.type = OBJECT_CAR;
 
-Enemy.prototype.step = function(dt) {
-  this.t += dt;
+Car.prototype.step = function(dt){
+    betweenRows.call(this,2,5,dt);
+    var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      frog.hit();
+    }
+  };
 
-  this.vx = this.A + this.B * Math.sin(this.C * this.t + this.D);
-  this.vy = this.E + this.F * Math.sin(this.G * this.t + this.H);
+/*
+#####
+# Trunk Class
+##############
+*/
+var Trunk = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( blueprint.sprite, blueprint);
+  this.merge(override);
 
-  this.x += this.vx * dt;
-  this.y += this.vy * dt;
+  this.y = 0;
 
-  var collision = this.board.collide(this,OBJECT_PLAYER);
-  if(collision) {
-    collision.hit(this.damage);
-    this.board.remove(this);
+  if (this.direction == 'left'){
+    this.x = Game.width;
   }
+  else if (this.direction == 'right'){
+    this.x = -this.w;
+  }
+  else{
+    console.error("The direction only can be left or right");
+  }
+};
 
-  if(Math.random() < 0.01 && this.reload <= 0) {
-    this.reload = this.reloadTime;
-    if(this.missiles == 2) {
-      this.board.add(new EnemyMissile(this.x+this.w-2,this.y+this.h));
-      this.board.add(new EnemyMissile(this.x+2,this.y+this.h));
-    } else {
-      this.board.add(new EnemyMissile(this.x+this.w/2,this.y+this.h));
+Trunk.prototype = new Sprite();
+Trunk.prototype.type = OBJECT_TRUNK;
+Trunk.prototype.baseBlueprint = {vx: 30, direction: 'left', row: 7};
+
+
+Trunk.prototype.step = function(dt){
+    betweenRows.call(this,7,9,dt);
+  };
+
+/*
+#####
+# Water Class
+##############
+*/
+var Water = function(){
+  this.x = 0;
+  this.y = 48;
+  this.h = 48 * 3;
+  this.w = Game.width;
+
+  this.draw = function (ctx){
+    // No Sprite
+  };
+
+  this.step = function (dt){
+    var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      var trunk = this.board.collide(frog,OBJECT_TRUNK);
+      if (!trunk){
+        frog.hit();
+      }
     }
 
-  }
-  this.reload-=dt;
-
-  if(this.y > Game.height ||
-     this.x < -this.w ||
-     this.x > Game.width) {
-       this.board.remove(this);
-  }
+  };
 };
 
-Enemy.prototype.hit = function(damage) {
-  this.health -= damage;
-  if(this.health <=0) {
-    if(this.board.remove(this)) {
-      Game.points += this.points || 100;
-      this.board.add(new Explosion(this.x + this.w/2, 
-                                   this.y + this.h/2));
-    }
-  }
-};
+Water.prototype = new Sprite();
+Water.prototype.type = OBJECT_WATER;
 
-var EnemyMissile = function(x,y) {
-  this.setup('enemy_missile',{ vy: 200, damage: 10 });
-  this.x = x - this.w/2;
+/*
+#####
+# Death Class
+##############
+*/
+var Death = function(x,y){
+  this.setup('death', { frame: 0 , reloadTime: 0.15 });
+  this.x = x;
   this.y = y;
-};
+  this.reload = this.reloadTime;
+}
 
-EnemyMissile.prototype = new Sprite();
-EnemyMissile.prototype.type = OBJECT_ENEMY_PROJECTILE;
+Death.prototype = new Sprite();
 
-EnemyMissile.prototype.step = function(dt)  {
-  this.y += this.vy * dt;
-  var collision = this.board.collide(this,OBJECT_PLAYER);
-  if(collision) {
-    collision.hit(this.damage);
-    this.board.remove(this);
-  } else if(this.y > Game.height) {
-      this.board.remove(this); 
+Death.prototype.step = function (dt){
+  this.reload -= dt;
+  if (this.reload < 0){
+    this.frame++; 
+    this.reload = this.reloadTime;
   }
-};
 
-
-
-var Explosion = function(centerX,centerY) {
-  this.setup('explosion', { frame: 0 });
-  this.x = centerX - this.w/2;
-  this.y = centerY - this.h/2;
-};
-
-Explosion.prototype = new Sprite();
-
-Explosion.prototype.step = function(dt) {
-  this.frame++;
-  if(this.frame >= 12) {
+  if(this.frame >= 4) {
     this.board.remove(this);
   }
-};
+}
 
+/*
+#####
+# Death Class
+##############
+*/
+var Home = function (){
+  this.x = 0;
+  this.y = 0;
+  this.h = 48;
+  this.w = Game.width;
+
+  this.draw = function (ctx){
+    // No Sprite
+  };
+
+  this.step = function (dt){
+    var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      console.log("fin");
+      winGame.call(frog);
+    }
+  }
+
+}
+
+Water.prototype = new Sprite();
+Water.prototype.type = OBJECT_HOME;
+
+/*
+#####
+# Load event
+##############
+*/
 window.addEventListener("load", function() {
-  Game.initialize("game",sprites,'img/sprites.png',startGame);
+  Game.initialize("game",sprites,'img/spritesFrogger.png',startGame);
 });
-
-
