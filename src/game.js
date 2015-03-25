@@ -1,7 +1,7 @@
 var sprites = {
   frog: { sx: 0, sy: 0, w: 48, h: 48, frames: 1 },
-  bg: { sx: 433, sy: 0, w: 320, h: 480, frames: 1 },
-  bg2: { sx: 795, sy: 0, w: 864, h: 720, frames: 1 },
+  bg: { sx: 433, sy: 0, w: 320, h: 528, frames: 1 },
+  bg2: { sx: 795, sy: 0, w: 837, h: 768, frames: 1 },
   car1: { sx: 143, sy: 0, w: 48, h: 48, frames: 1 },
   car2: { sx: 191, sy: 0, w: 48, h: 48, frames: 1 },  
   car3: { sx: 239, sy: 0, w: 96, h: 48, frames: 1 },
@@ -24,6 +24,18 @@ var waterObstacles = {
   middleTrunk: {sprite: 'trunk', vx:50},
   fastTrunk: {sprite: 'trunk', vx:80}
 }
+
+var OBJECT_PLAYER = 1,
+    OBJECT_CAR = 2,
+    OBJECT_TRUNK = 4,
+    OBJECT_WATER = 8,
+    OBJECT_HOME = 16;
+
+/*
+#####
+# Data Levels
+##############
+*/
 
 //[Frequency,  Blueprint, Override]
 var Level1 = [
@@ -72,11 +84,7 @@ var Level2 = [
 
 ];
 
-var OBJECT_PLAYER = 1,
-    OBJECT_CAR = 2,
-    OBJECT_TRUNK = 4,
-    OBJECT_WATER = 8,
-    OBJECT_HOME = 16;
+
 
 var startGame = function() {
   var ua = navigator.userAgent.toLowerCase();
@@ -106,7 +114,7 @@ var winGame = function() {
 
   if (!this.end){
     Game.lifes += 3;
-    this.board.add(new TitleScreen("You win!", 
+    this.add(new TitleScreen("You win!", 
                                     "Press Enter to start playing",
                                     playGame));
     this.end = true;
@@ -115,13 +123,14 @@ var winGame = function() {
 
 var loseGame = function() {
   Game.lifes = 3;
-  this.board.add(new TitleScreen("You lose!", 
+  this.add(new TitleScreen("You lose!", 
                                   "Press Enter to start playing",
                                   playGame));
   
 };
 
 var retry = function(){
+
   Game.lifes--;
   if (Game.levelNumber == 1){
     callback = playGame;
@@ -129,14 +138,14 @@ var retry = function(){
   else if (Game.levelNumber == 2){
     callback = level2;
   }
-  this.board.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
+  this.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
                                   "Press Enter to retry it",
                                   callback));
   
 }
 
 var playGame = function() {
-  Game.changeSizeCanvas(320,480);
+  Game.changeSizeCanvas(320,528);
   Game.setBoard(1, new Field('bg'));
   var board = new GameBoard();
   Game.levelNumber = 1;
@@ -146,11 +155,12 @@ var playGame = function() {
   board.add(new Frog());
   board.add(new Spawner(Level1));
   Game.setBoard(2,board);
-  Game.setBoard(3,new GameHub());
+  Game.setBoard(3,new GameHud());
+  //Game.setBoard(4,new GameTime(2, board));
 };
 
 var level2 = function(){
-  Game.changeSizeCanvas(864,720);
+  Game.changeSizeCanvas(837,768);
   Game.setBoard(1, new Field('bg2'));
 
   var board = new GameBoard();
@@ -161,7 +171,7 @@ var level2 = function(){
   board.add(new Frog());
   board.add(new Spawner(Level2));
   Game.setBoard(2,board);
-  Game.setBoard(3,new GameHub());
+  Game.setBoard(3,new GameHud());
 }
 
 
@@ -253,10 +263,10 @@ Frog.prototype.hit = function(damage) {
   if(this.board.remove(this)) {
     this.board.add(new Death(this.x,this.y));
     if (Game.lifes > 0){
-      retry.call(this);
+      retry.call(this.board);
     }
     else{
-      loseGame.call(this);
+      loseGame.call(this.board);
     }
   }
 };
@@ -345,7 +355,7 @@ Trunk.prototype.step = function(dt){
 */
 var Water = function(rows){
   this.x = 0;
-  this.y = 48;
+  this.y = 48 * 2;
   this.h = 48 * rows;
   this.w = Game.width;
 
@@ -401,7 +411,7 @@ Death.prototype.step = function (dt){
 */
 var Home = function (){
   this.x = 0;
-  this.y = 0;
+  this.y = 48;
   this.h = 48;
   this.w = Game.width;
 
@@ -416,7 +426,7 @@ var Home = function (){
         level2();
       }
       else if (Game.levelNumber == 2){
-        winGame.call(frog);  
+        winGame.call(this.board);  
       }
       
     }

@@ -502,7 +502,7 @@ var GamePoints = function() {
   this.step = function(dt) { };
 };
 
-var GameHub = function(text) {
+var GameHud = function(text) {
   this.text = text;
 
   this.draw = function(ctx) {
@@ -515,4 +515,32 @@ var GameHub = function(text) {
   };
 
   this.step = function(dt) { };
+};
+
+var GameTime = function(initTime, board){
+  this.initTime = initTime;
+  this.initBox = 200;
+  this.boxSize = this.initBox;
+  this.board = board;
+
+  this.draw = function(ctx){
+    ctx.fillStyle = '#00CC00';
+    ctx.fillRect(Game.width - this.boxSize - 10,30,this.boxSize,15);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(this.boxSize,0,60);
+  };
+
+  this.step = function(dt) { 
+    this.boxSize -= dt * (this.initBox / this.initTime);
+
+    if (this.boxSize < 0){
+      if (Game.lifes > 0){
+        retry.call(this.board);
+      }
+      else{
+        loseGame.call(this.board);
+      }
+      Game.setBoard(4,new function(){});
+    }
+  };
 };
