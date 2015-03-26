@@ -1,5 +1,5 @@
 var sprites = {
-  frog: { sx: 0, sy: 0, w: 48, h: 48, frames: 1 },
+  frog: { sx: 0, sy: 0, w: 48, h: 48, frames: 3 },
   bg: { sx: 433, sy: 0, w: 320, h: 528, frames: 1 },
   bg2: { sx: 795, sy: 0, w: 837, h: 768, frames: 1 },
   car1: { sx: 143, sy: 0, w: 48, h: 48, frames: 1 },
@@ -7,6 +7,9 @@ var sprites = {
   car3: { sx: 239, sy: 0, w: 96, h: 48, frames: 1 },
   car4: { sx: 335, sy: 0, w: 48, h: 48, frames: 1 },
   car5: { sx: 383, sy: 0, w: 48, h: 48, frames: 1 },
+  bug: { sx: 96, sy: 288, w: 48, h: 48, frames: 1 },
+  snake: { sx: 0, sy: 384, w: 96, h: 48, frames: 3 },
+  turtle: { sx: 0, sy: 240, w: 48, h: 48, frames: 5 },
   trunk: { sx: 288, sy: 383, w: 142, h: 48, frames: 1 },
   death: { sx: 0, sy: 143, w: 48, h: 48, frames: 4 }
 }
@@ -25,11 +28,22 @@ var waterObstacles = {
   fastTrunk: {sprite: 'trunk', vx:80}
 }
 
+var grassObstacles = {
+  snake: {vx:100}
+}
+
+var turtleObstacles = {
+  turtle: {vx:30}
+}
+
 var OBJECT_PLAYER = 1,
     OBJECT_CAR = 2,
     OBJECT_TRUNK = 4,
     OBJECT_WATER = 8,
-    OBJECT_HOME = 16;
+    OBJECT_HOME = 16,
+    OBJECT_BUG = 32,
+    OBJECT_SNAKE = 64,
+    OBJECT_TURTLE = 128;
 
 /*
 #####
@@ -51,9 +65,19 @@ var Level1 = [
 
 //TRUNKS
 [
-  [ 10, 'slowTrunk', {row:7, direction:'left'}],
+  //[ 10, 'slowTrunk', {row:7, direction:'left'}],
   [ 3, 'fastTrunk', {row:8, direction:'right'}],
   [ 5, 'middleTrunk', {row:9, direction:'left'}]
+],
+
+//SNAKE
+[
+  [6, 'snake', {row:6}]
+],
+
+//TURTLE
+[
+  [3, 'turtle', {row:7}]
 ]
 
 ];
@@ -76,10 +100,19 @@ var Level2 = [
 
 //TRUNKS
 [
-  [ 10, 'slowTrunk', {row:11, direction:'left'}],
+  //[ 10, 'slowTrunk', {row:11, direction:'left'}],
   [ 3, 'fastTrunk', {row:12, direction:'right'}],
   [ 5, 'middleTrunk', {row:13, direction:'left'}],
   [ 3, 'fastTrunk', {row:14, direction:'right', vx: 180}]
+],
+//SNAKE
+[
+  [2, 'snake', {row:10, vx:150}]
+],
+
+//TURTLE
+[
+  [3, 'turtle', {row:11}]
 ]
 
 ];
@@ -96,6 +129,8 @@ var startGame = function() {
                                   "Press Enter to start playing",
                                   playGame));
   Game.lifes = 3;
+  Game.points = 0;
+  
 };
 
 
@@ -108,21 +143,25 @@ var Field = function(bg) {
   };
 
 };
+
 Field.prototype = new Sprite();
 
 var winGame = function() {
 
-  if (!this.end){
+  if (!Game.end && !Game.retry){
+    Game.setBoardDisable(4);
     Game.lifes += 3;
     this.add(new TitleScreen("You win!", 
                                     "Press Enter to start playing",
                                     playGame));
-    this.end = true;
+    Game.end = true;
   }
 };
 
 var loseGame = function() {
+  Game.setBoardDisable(4);
   Game.lifes = 3;
+  Game.points = 0;
   this.add(new TitleScreen("You lose!", 
                                   "Press Enter to start playing",
                                   playGame));
@@ -130,48 +169,91 @@ var loseGame = function() {
 };
 
 var retry = function(){
-
-  Game.lifes--;
-  if (Game.levelNumber == 1){
-    callback = playGame;
+  
+  if (!Game.retry){
+    Game.setBoardDisable(4);
+    Game.lifes--;
+    if (Game.levelNumber == 1){
+      callback = playGame;
+    }
+    else if (Game.levelNumber == 2){
+      callback = level2;
+    }
+    this.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
+                                    "Press Enter to retry it",
+                                    callback));
+    Game.retry = true;
   }
-  else if (Game.levelNumber == 2){
-    callback = level2;
-  }
-  this.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
-                                  "Press Enter to retry it",
-                                  callback));
   
 }
 
-var playGame = function() {
-  Game.changeSizeCanvas(320,528);
-  Game.setBoard(1, new Field('bg'));
-  var board = new GameBoard();
-  Game.levelNumber = 1;
+var initLevel = function(levelNumber, canvasWidth, canvasHeight, bg){
+  Game.end = false;
+  Game.retry = false;
+  Game.levelNumber = levelNumber;
+  Game.changeSizeCanvas(canvasWidth, canvasHeight);
+  Game.setBoard(1, new Field(bg));
+}
 
+var playGame = function() {
+
+  //Init some variable for the level  
+  initLevel(1,320,528, 'bg');
+
+  var board = new GameBoard();
+
+  //Create unique entities
   board.add(new Water(3));
   board.add(new Home());
+  //board.add(new Turtle());
   board.add(new Frog());
+  
+  //Create bugs
+  board.add(new Bug(2,5));
+  board.add(new Bug(3,8));
+  board.add(new Bug(5,5));
+  
+
+  //Spawner
   board.add(new Spawner(Level1));
+
+  //Set some boards
   Game.setBoard(2,board);
   Game.setBoard(3,new GameHud());
-  //Game.setBoard(4,new GameTime(2, board));
+  Game.setBoard(4,new GameTime(15, board));
+  Game.setBoard(5,new GamePoints());
 };
 
 var level2 = function(){
-  Game.changeSizeCanvas(837,768);
-  Game.setBoard(1, new Field('bg2'));
+
+  //Init some variable for the level  
+  initLevel(2,837,768, 'bg2');
 
   var board = new GameBoard();
-  Game.levelNumber = 2;
 
+  //Create unique entities
   board.add(new Water(4));
   board.add(new Home());
   board.add(new Frog());
+
+  //Create bugs
+  board.add(new Bug(2,8));
+  board.add(new Bug(3,9));
+  board.add(new Bug(4,7)); 
+  board.add(new Bug(7,6));
+  board.add(new Bug(8,6));
+  board.add(new Bug(10,10));
+  board.add(new Bug(13,11));
+  board.add(new Bug(15,7));
+
+  //Spawner
   board.add(new Spawner(Level2));
+
+  //Set some boards
   Game.setBoard(2,board);
   Game.setBoard(3,new GameHud());
+  Game.setBoard(4,new GameTime(30, board));
+  Game.setBoard(5,new GamePoints());
 }
 
 
@@ -204,9 +286,10 @@ var betweenRows = function(min, max, dt){
 ##############
 */
 var Frog = function() { 
-  this.setup('frog', { vx: 0, reloadTime: 0.15, maxVel: 48 });
+  this.setup('frog', { vx: 0, reloadTime: 0.07, reloadAnimation:0.01, maxVel: 48 });
 
   this.reload = this.reloadTime;
+  this.reloadAnima = this.reloadAnimation;
   this.x = this.h * 3;
   this.y = Game.height - this.h;
 
@@ -214,14 +297,24 @@ var Frog = function() {
     this.reload -= dt;
     if (this.reload < 0){
 
+      if (Game.pressKey){
+          this.animation(dt);
+      }
+
       // If the frog arrives to home, it won't move. 
-      if (!this.end){
-        if(Game.keys['left']) { this.x -= this.maxVel; console.log("x = " + this.x);}
-        else if(Game.keys['right']) { this.x += this.maxVel; console.log("x = " + this.x);}
-        else if(Game.keys['up']) { this.y -= this.maxVel; console.log("y = " + this.y);}
-        else if(Game.keys['down']) { this.y += this.maxVel; console.log("y = " + this.y);}
+      if (!Game.end && !Game.pressKey){
+
+        if (Game.keys['left'] || Game.keys['right'] || Game.keys['up'] || Game.keys['down']){
+          this.animation(dt);
+        }
+        if(Game.keys['left']) { this.x -= this.maxVel; console.log("x = " + this.x);Game.pressKey = true;}
+        else if(Game.keys['right']) { this.x += this.maxVel; console.log("x = " + this.x);Game.pressKey = true;}
+        else if(Game.keys['up']) { this.y -= this.maxVel; console.log("y = " + this.y);Game.pressKey = true;}
+        else if(Game.keys['down']) { this.y += this.maxVel; console.log("y = " + this.y);Game.pressKey = true;}
         else { this.vx = 0; }
       }
+
+      
 
       // You can't go out of the limits of the screen!!
       if(this.x < 0) { this.x = 0; }
@@ -236,17 +329,24 @@ var Frog = function() {
       this.reload = this.reloadTime;
     }
 
-    var trunk = this.board.collide(this,OBJECT_TRUNK);
-    if(trunk) {
-      this.onTrunk(trunk, dt);
-    }
-
   };
 };
 
 Frog.prototype = new Sprite();
 Frog.prototype.type = OBJECT_PLAYER;
 
+Frog.prototype.animation = function(dt){
+  this.reloadAnima -= dt;
+  if (this.reloadAnima < 0){
+    this.frame++; 
+    this.reloadAnima = this.reloadAnimation;
+  }
+
+  if(this.frame >= 3) {
+    this.frame = 0;
+    Game.pressKey = false;
+  }
+}
 Frog.prototype.onTrunk = function (trunk, dt){
   if (trunk.direction == 'left'){
     this.x -= trunk.vx * dt;
@@ -300,11 +400,11 @@ Car.prototype.type = OBJECT_CAR;
 
 Car.prototype.step = function(dt){
     if (Game.levelNumber == 1){
-    betweenRows.call(this,2,5,dt);
-  }
-  else if (Game.levelNumber == 2){
-    betweenRows.call(this,2,9,dt);
-  }
+      betweenRows.call(this,2,5,dt);
+    }
+    else if (Game.levelNumber == 2){
+      betweenRows.call(this,2,9,dt);
+    }
     var frog = this.board.collide(this,OBJECT_PLAYER);
     if(frog) {
       frog.hit();
@@ -346,6 +446,12 @@ Trunk.prototype.step = function(dt){
   else if (Game.levelNumber == 2){
     betweenRows.call(this,11,15,dt);
   }
+
+  var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      frog.onTrunk(this, dt);
+    }
+
   };
 
 /*
@@ -367,7 +473,8 @@ var Water = function(rows){
     var frog = this.board.collide(this,OBJECT_PLAYER);
     if(frog) {
       var trunk = this.board.collide(frog,OBJECT_TRUNK);
-      if (!trunk){
+      var turtle = this.board.collide(frog,OBJECT_TURTLE);
+      if (!trunk && !turtle){
         frog.hit();
       }
     }
@@ -422,10 +529,10 @@ var Home = function (){
   this.step = function (dt){
     var frog = this.board.collide(this,OBJECT_PLAYER);
     if(frog) {
-      if (Game.levelNumber == 1){
+      if (Game.levelNumber == 1 && !Game.retry){
         level2();
       }
-      else if (Game.levelNumber == 2){
+      else if (Game.levelNumber == 2 && !Game.retry){
         winGame.call(this.board);  
       }
       
@@ -436,6 +543,141 @@ var Home = function (){
 
 Water.prototype = new Sprite();
 Water.prototype.type = OBJECT_HOME;
+
+/*
+#####
+# Bug Class
+##############
+*/
+var Bug = function (column, row){
+  this.setup('bug');
+  
+  this.w /= 2;
+  this.h /= 2;
+
+  this.x = (48 * column) + 12; 
+  this.y = (48 * row) + 12;
+}
+
+Bug.prototype = new Sprite();
+Bug.prototype.type = OBJECT_BUG;
+
+Bug.prototype.step = function(dt){
+  var frog = this.board.collide(this,OBJECT_PLAYER);
+  if (frog){
+    Game.points += 100;
+    this.board.remove(this);
+  }
+};
+
+/*
+#####
+# Snake Class
+##############
+*/
+var Snake = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( 'snake', blueprint);
+  this.merge(override);
+  this.y = 0;
+  this.reload = this.reloadTime;
+
+  if (this.direction == 'left'){
+    this.x = Game.width;
+  }
+  else if (this.direction == 'right'){
+    this.x = -this.w;
+  }
+  else{
+    console.error("The direction only can be left or right");
+  }
+};
+
+
+Snake.prototype = new Sprite();
+Snake.prototype.baseBlueprint = {vx: 100, direction: 'left', row: 6, reloadTime: 0.15};
+Snake.prototype.type = OBJECT_SNAKE;
+
+Snake.prototype.step = function(dt){
+    if (Game.levelNumber == 1){
+      betweenRows.call(this,6,6,dt);
+    }
+    else if (Game.levelNumber == 2){
+      betweenRows.call(this,10,10,dt);
+    }
+    var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      frog.hit();
+    }
+
+    this.reload -= dt;
+    if (this.reload < 0){
+      this.frame++; 
+      this.reload = this.reloadTime;
+    }
+
+    if(this.frame >= 3) {
+      this.frame = 0;
+    }
+  };
+
+/*
+#####
+# Turtle Class
+##############
+*/
+var Turtle = function(blueprint, override){
+  this.merge(this.baseBlueprint);
+  this.setup( 'turtle', blueprint);
+  this.merge(override);
+  this.reload = this.reloadTime;
+  this.y = 0;
+
+  if (this.direction == 'left'){
+    this.x = Game.width;
+  }
+  else if (this.direction == 'right'){
+    this.x = -this.w;
+  }
+  else{
+    console.error("The direction only can be left or right");
+  }
+};
+
+Turtle.prototype = new Sprite();
+Turtle.prototype.type = OBJECT_TURTLE;
+Turtle.prototype.baseBlueprint = {vx: 30, direction: 'left', row: 7, reloadTime: 0.7};
+
+
+Turtle.prototype.step = function(dt){
+  if (Game.levelNumber == 1){
+    betweenRows.call(this,7,9,dt);
+  }
+  else if (Game.levelNumber == 2){
+    betweenRows.call(this,11,15,dt);
+  }
+
+  this.reload -= dt;
+  if (this.reload < 0){
+    this.frame++; 
+    this.reload = this.reloadTime;
+  }
+
+  if(this.frame >= 5) {
+    this.frame = 0;
+  }
+
+  var frog = this.board.collide(this,OBJECT_PLAYER);
+    if(frog) {
+      if (this.frame < 4){
+        frog.onTrunk(this, dt);
+      }
+      else{
+        frog.hit();
+      }
+    }
+
+  };
 
 /*
 #####

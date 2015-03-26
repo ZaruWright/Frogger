@@ -26,6 +26,7 @@
 
 var Game = new function() {                                                                  
   var boards = [];
+  var boardsEnable = [];
 
   // Game Initialization
   this.initialize = function(canvasElementId,sprite_data,sprite_image,callback) {//callback = startGame
@@ -96,7 +97,7 @@ var Game = new function() {
     if(dt > maxTime) { dt = maxTime; }
 
     for(var i=0,len = boards.length;i<len;i++) {
-      if(boards[i]) { 
+      if(boards[i] && boardsEnable[i]) { 
         boards[i].step(dt);
         boards[i].draw(Game.ctx);
       }
@@ -105,7 +106,11 @@ var Game = new function() {
   };
   
   // Change an active game board
-  this.setBoard = function(num,board) { boards[num] = board; };
+  this.setBoard = function(num,board) { boards[num] = board; this.setBoardEnable(num);};
+
+  this.setBoardEnable = function(i){ boardsEnable[i] = true;};
+
+  this.setBoardDisable = function(i){ boardsEnable[i] = false;};
 
 
   this.setupMobile = function() {
@@ -160,15 +165,18 @@ var SpriteSheet = new function() {
     this.image.src = spriteImage;
   };
 
-  this.draw = function(ctx,sprite,x,y,frame) {
+  this.draw = function(ctx,sprite,x,y,frame,dWidth, dHeight) {
     var s = this.map[sprite];
     if(!frame) frame = 0;
+    if(!dWidth) dWidth = s.w;
+    if(!dHeight) dHeight = s.h;
+
     ctx.drawImage(this.image,
                      s.sx + frame * s.w, 
                      s.sy, 
                      s.w, s.h, 
                      Math.floor(x), Math.floor(y),
-                     s.w, s.h);
+                     dWidth, dHeight);
   };
 
   return this;
@@ -325,7 +333,7 @@ Sprite.prototype.merge = function(props) {
 };
 
 Sprite.prototype.draw = function(ctx) {
-  SpriteSheet.draw(ctx,this.sprite,this.x,this.y,this.frame);
+  SpriteSheet.draw(ctx,this.sprite,this.x,this.y,this.frame, this.w, this.h);
 };
 
 Sprite.prototype.hit = function(damage) {
@@ -333,73 +341,80 @@ Sprite.prototype.hit = function(damage) {
 };
 
 
+
 var Spawner = function(levelData,callback) {
   this.levelDataRoad = [];
   this.levelDataWater = [];
+  this.levelDataSnakes = [];
+  this.levelDataTurtles = [];
   this.tRoad = [];
   this.tWater = [];
+  this.tSnake = [];
+  this.tTurtle = [];
 
-  for (var i=0; i<levelData[0].length; ++i){
-    this.levelDataRoad.push(Object.create(levelData[0][i]));
-    this.tRoad[i] = 0;
-  }
-
-  for (var i=0; i<levelData[1].length; ++i){
-    this.levelDataWater.push(Object.create(levelData[1][i]));
-    this.tWater[i] = 0;
-  }
+  this.initSpawner(0, levelData, this.levelDataRoad, this.tRoad);
+  this.initSpawner(1, levelData, this.levelDataWater, this.tWater);
+  this.initSpawner(2, levelData, this.levelDataSnakes, this.tSnake);
+  this.initSpawner(3, levelData, this.levelDataTurtles, this.tTurtle);
   
   this.callback = callback;
 };
 
+Spawner.prototype.initSpawner = function(index, levelData, level, t){
+  for (var i=0; i<levelData[index].length; ++i){
+    level.push(Object.create(levelData[index][i]));
+    t[i] = 0;
+  }
+}
+
+
+Spawner.prototype.createObjects = function(type,level, t, obstacles){
+  var index = 0;
+  while (index < level.length){
+
+    if (t[index] <= 0){
+      this.curObstacle = level[index];
+
+      var obstacle = obstacles[this.curObstacle[1]],
+          override = this.curObstacle[2];
+
+      if (type == 'car'){
+        this.board.add(new Car(obstacle,override));
+      }
+      else if (type == 'water'){
+        this.board.unshift(new Trunk(obstacle,override));
+      }
+      else if (type == 'grass'){
+        this.board.add(new Snake(obstacle, override))
+      }
+      else if (type == 'turtle'){
+        this.board.unshift(new Turtle(obstacle, override))
+      }
+
+      t[index] = this.curObstacle[0];
+    }
+    ++index;
+  }
+}
+
+Spawner.prototype.updateTime = function(t, dt){
+  for (var i=0; i < t.length; ++i){
+    t[i] -= dt;
+  }
+}
+
 Spawner.prototype.step = function(dt) {
-  var curObstacle = null, index = 0;
+  this.curObstacle = null;
 
-  //[Frequency,    type,    override]
-  //For road obstacles
-  while (index < this.levelDataRoad.length){
-
-    if (this.tRoad[index] <= 0){
-      curObstacle = this.levelDataRoad[index];
-
-      var obstacle = roadObstacles[curObstacle[1]],
-          override = curObstacle[2];
-   
-      this.board.add(new Car(obstacle,override));
-
-      this.tRoad[index] = curObstacle[0];
-    }
-
-    ++index;
-    
-  }
-
-  index = 0;
-
-  //For water obstacles
-  while(index < this.levelDataWater.length){
-
-    if (this.tWater[index] <= 0){
-      curObstacle = this.levelDataWater[index];
-
-      var obstacle = waterObstacles[curObstacle[1]],
-            override = curObstacle[2];
-     
-      this.board.unshift(new Trunk(obstacle,override));
-
-      this.tWater[index] = curObstacle[0];
-    }
-
-    ++index;
-  }
-
-  for (var i=0; i < this.tRoad.length; ++i){
-    this.tRoad[i] -= dt;
-  }
-
-  for (var i=0; i < this.tWater.length; ++i){
-    this.tWater[i] -= dt;
-  }
+  this.createObjects('car',this.levelDataRoad, this.tRoad, roadObstacles);
+  this.createObjects('water',this.levelDataWater, this.tWater, waterObstacles);
+  this.createObjects('grass',this.levelDataSnakes, this.tSnake, grassObstacles);
+  this.createObjects('turtle',this.levelDataTurtles, this.tTurtle, turtleObstacles);
+  
+  this.updateTime(this.tRoad, dt);
+  this.updateTime(this.tWater, dt);
+  this.updateTime(this.tSnake, dt);
+  this.updateTime(this.tTurtle, dt);
 };
 
 Spawner.prototype.draw = function(ctx) { };
@@ -481,7 +496,6 @@ var TouchControls = function() {
 
 
 var GamePoints = function() {
-  Game.points = 0;
 
   var pointsLength = 8;
 
@@ -494,7 +508,7 @@ var GamePoints = function() {
     var i = pointsLength - txt.length, zeros = "";
     while(i-- > 0) { zeros += "0"; }
 
-    ctx.fillText(zeros + txt,10,20);
+    ctx.fillText(zeros + txt,10,40);
     ctx.restore();
 
   };
@@ -509,7 +523,7 @@ var GameHud = function(text) {
     ctx.save();
     ctx.font = "bold 18px arial";
     ctx.fillStyle= "#FFFFFF";
-    ctx.fillText(Game.lifes + "-UP",20,20);
+    ctx.fillText(Game.lifes + "-UP",10,20);
     ctx.restore();
 
   };
@@ -526,8 +540,8 @@ var GameTime = function(initTime, board){
   this.draw = function(ctx){
     ctx.fillStyle = '#00CC00';
     ctx.fillRect(Game.width - this.boxSize - 10,30,this.boxSize,15);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(this.boxSize,0,60);
+    /*ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(this.boxSize,0,60);*/
   };
 
   this.step = function(dt) { 
@@ -540,7 +554,6 @@ var GameTime = function(initTime, board){
       else{
         loseGame.call(this.board);
       }
-      Game.setBoard(4,new function(){});
     }
   };
 };
