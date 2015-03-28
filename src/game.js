@@ -117,7 +117,11 @@ var Level2 = [
 
 ];
 
-
+/*
+#####
+# Game Functions
+##############
+*/
 
 var startGame = function() {
   var ua = navigator.userAgent.toLowerCase();
@@ -133,59 +137,6 @@ var startGame = function() {
   
 };
 
-
-var Field = function(bg) {
-  this.bg = bg;
-  this.step = function(dt) {
-    this.setup(this.bg);
-    this.x = 0;
-    this.y = 0;
-  };
-
-};
-
-Field.prototype = new Sprite();
-
-var winGame = function() {
-
-  if (!Game.end && !Game.retry){
-    Game.setBoardDisable(4);
-    Game.lifes += 3;
-    this.add(new TitleScreen("You win!", 
-                                    "Press Enter to start playing",
-                                    playGame));
-    Game.end = true;
-  }
-};
-
-var loseGame = function() {
-  Game.setBoardDisable(4);
-  Game.lifes = 3;
-  Game.points = 0;
-  this.add(new TitleScreen("You lose!", 
-                                  "Press Enter to start playing",
-                                  playGame));
-  
-};
-
-var retry = function(){
-  
-  if (!Game.retry){
-    Game.setBoardDisable(4);
-    Game.lifes--;
-    if (Game.levelNumber == 1){
-      callback = playGame;
-    }
-    else if (Game.levelNumber == 2){
-      callback = level2;
-    }
-    this.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
-                                    "Press Enter to retry it",
-                                    callback));
-    Game.retry = true;
-  }
-  
-}
 
 var initLevel = function(levelNumber, canvasWidth, canvasHeight, bg){
   Game.end = false;
@@ -256,6 +207,11 @@ var level2 = function(){
   Game.setBoard(5,new GamePoints());
 }
 
+/*
+#####
+# Auxiliar Functions
+##############
+*/
 
 var betweenRows = function(min, max, dt){
   if (this.row < min || this.row > max){
@@ -279,6 +235,71 @@ var betweenRows = function(min, max, dt){
     console.error("The direction only can be left or right", this.direction, this.x);
   }
 }
+
+/*
+#####
+# Title Screen
+##############
+*/
+
+var winGame = function() {
+
+  if (!Game.end && !Game.retry){
+    Game.setBoardDisable(4);
+    Game.lifes += 3;
+    this.add(new TitleScreen("You win!", 
+                                    "Press Enter to start playing",
+                                    playGame));
+    Game.end = true;
+  }
+};
+
+var loseGame = function() {
+  Game.setBoardDisable(4);
+  Game.lifes = 3;
+  Game.points = 0;
+  this.add(new TitleScreen("You lose!", 
+                                  "Press Enter to start playing",
+                                  playGame));
+  
+};
+
+var retry = function(){
+  
+  if (!Game.retry){
+    Game.setBoardDisable(4);
+    Game.lifes--;
+    if (Game.levelNumber == 1){
+      callback = playGame;
+    }
+    else if (Game.levelNumber == 2){
+      callback = level2;
+    }
+    this.add(new TitleScreen("You lose! " + Game.lifes + "-UP", 
+                                    "Press Enter to retry it",
+                                    callback));
+    Game.retry = true;
+  }
+  
+}
+
+/*
+#####
+# Field Class
+##############
+*/
+
+var Field = function(bg) {
+  this.bg = bg;
+  this.step = function(dt) {
+    this.setup(this.bg);
+    this.x = 0;
+    this.y = 0;
+  };
+
+};
+
+Field.prototype = new Sprite();
 
 /*
 #####
@@ -313,8 +334,6 @@ var Frog = function() {
         else if(Game.keys['down']) { this.y += this.maxVel; console.log("y = " + this.y);Game.pressKey = true;}
         else { this.vx = 0; }
       }
-
-      
 
       // You can't go out of the limits of the screen!!
       if(this.x < 0) { this.x = 0; }
