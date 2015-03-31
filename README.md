@@ -1,4 +1,6 @@
---- Frogger ---
+If you want to play this game, click in the follow link: http://rawgit.com/ZaruWright/Frogger/master/index.html
+
+=== Frogger ===
 
 This are the follow features that I have implemented.
 
@@ -20,7 +22,7 @@ This are the follow features that I have implemented.
 
 * Also, we have a spawner in the our motor game. This class is responsible for create objects in the game. The objects that we can generate are trunks and vehicles. Also we could create snakes and turtles that we explain later.
 
---- Improvements ---
+=== Improvements ===
 
 When I finished to do the game, I thought that I could do a improve of the game. Thus I done it. Now I explain the other features that I done to complete the game.
 
@@ -37,7 +39,7 @@ When I finished to do the game, I thought that I could do a improve of the game.
 * Finally I added two new kinds of enemies/obstacles, they are: snakes and turtles. The snake is implemented in the Snake class. The snakes are similar to the cars, but the snakes only can move in the purple grass and has an animation to move it. For the other things, snakes and cars are equals. The turtle is implemented in the Turtle class. The turtles are similar to the trunks, the difference are that a turtle has an animation and if the frog go up on the turtle and the turtle dive under water, then the frog dies. For the other features, trunks and turtles are equals.
 
 
---- In the future... ---
+=== In the future... ===
 
 I know that the original game has a lot of functionalities that I cannot implement. For this, if some day I am bored, I think that the best feature that I can do is do the game to two players. I think that this can be fun.
 
